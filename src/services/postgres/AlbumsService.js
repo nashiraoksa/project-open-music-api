@@ -9,7 +9,7 @@ class AlbumsService {
   }
 
   async addAlbum ({ name, year }) {
-    const id = nanoid(16);
+    const id = `album-${nanoid(10)}`;
 
     const query = {
       text: 'INSERT INTO albums VALUES($1, $2, $3) RETURNING id',
@@ -26,9 +26,7 @@ class AlbumsService {
   }
 
   async getAlbums () {
-    const result = await this._pool.query('SELECT * FROM albums');
-
-    return result;
+    return await this._pool.query('SELECT * FROM albums');
   }
 
   async getAlbumById (id) {
@@ -39,7 +37,7 @@ class AlbumsService {
 
     const result = await this._pool.query(query);
 
-    if (!result.rows.length) {
+    if (!result.rowCount) {
       throw new NotFoundError('Album tidak ditemukan');
     }
 
