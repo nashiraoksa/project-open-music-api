@@ -42,12 +42,21 @@ const uploads = require('./api/uploads');
 const StorageService = require('./services/storage/StorageService');
 const UploadsValidator = require('./validator/uploads');
 
+// album likes
+const albumsLikes = require('./api/albumLikes');
+const AlbumsLikesService = require('./services/postgres/AlbumLikesService');
+
+// cache
+const CacheService = require('./services/redis/CacheService');
+
 const init = async () => {
+  const cacheService = new CacheService();
   const albumsService = new AlbumsService();
   const songsService = new SongsService();
   const usersService = new UsersService();
   const authenticationsService = new AuthenticationsService();
   const playlistsService = new PlaylistsService();
+  const albumsLikesService = new AlbumsLikesService(cacheService);
   const storageService = new StorageService(path.resolve(__dirname, 'api/uploads/file/images'));
 
   const server = Hapi.server({
@@ -140,14 +149,19 @@ const init = async () => {
         validator: UploadsValidator,
         albumsService
       }
+    },
+    {
+      plugin: albumsLikes,
+      options: {
+        service: albumsLikesService,
+        albumsService
+      }
     }
   ]);
 
   server.ext('onPreResponse', (request, h) => {
-    // mendapatkan konteks response dari request
     const { response } = request;
     if (response instanceof Error) {
-      // penanganan client error secara internal.
       if (response instanceof ClientError) {
         const newResponse = h.response({
           status: 'fail',
@@ -156,11 +170,9 @@ const init = async () => {
         newResponse.code(response.statusCode);
         return newResponse;
       }
-      // mempertahankan penanganan client error oleh hapi secara native, seperti 404, etc.
       if (!response.isServer) {
         return h.continue;
       }
-      // penanganan server error sesuai kebutuhan
       const newResponse = h.response({
         status: 'error',
         message: 'terjadi kegagalan pada server kami'
@@ -168,7 +180,6 @@ const init = async () => {
       newResponse.code(500);
       return newResponse;
     }
-    // jika bukan error, lanjutkan dengan response sebelumnya (tanpa terintervensi)
     return h.continue;
   });
 
